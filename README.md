@@ -1,4 +1,4 @@
-# IWQoS2026-COINFER:Breaking the Resource Wall for Collaborative Edge Inference
+    # IWQoS2026-COINFER:Breaking the Resource Wall for Collaborative Edge Inference
 
 
 ## Abstract
@@ -33,7 +33,7 @@ In a heterogeneous collaborative environment, this optimization landscape become
 ## System Design
 
 The **COINFER** architecture presents a frequency-aware distributed inference scheme orchestrated by an edge gateway to jointly optimize model partitioning, device allocation, and frequency scaling across heterogeneous IoT devices, the whole architecture of system is shown as blow. Upon receiving an inference task, the gateway applies a model partitioning approach to decompose the target deep neural network into discrete computational segments. To establish a foundation for precise scheduling, the offline phase of **COINFER** utilizes machine learning-based latency predictors for accurate latency estimation on physical devices.
-![OOM Analysis](./resource/Whole Pipeline.jpg)
+![OOM Analysis](./resource/WholePipeline.jpg)
 
 During runtime, a frequency optimizer integrates these predictions with device energy models to construct a hierarchical graph representing the available resource allocation space. Operating on this topology, **COINFER** adopts a two-level optimization strategy: the outer layer employs a TPE optimizer to dynamically adjust device frequencies, while the inner layer utilizes a hierarchical directed graph multi-objective shortest-path search to determine device mapping under memory constraints.
 The gateway subsequently dispatches the mapped segments to selected edge nodes to execute collaborative inference. To ensure reliable execution against hardware volatility, a breakpoint repair mechanism seamlessly migrates interrupted workloads to alternative devices upon node failures. Simulation results demonstrate that **COINFER** reduces scheduling delays and achieves superior inference performance compared to existing strategies.
