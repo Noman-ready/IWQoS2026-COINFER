@@ -16,7 +16,7 @@ As evidenced by our profiling of the ViT\_H\_14 model is shown below, cumulative
 
 ![OOM Analysis](./resource/OOM.png)
 
-Furthermore, we observe that naively provisioning additional resources does not guarantee system stability. As illustrated, even with the other introduction of a 4.0 GB node (tablet), the system remains vulnerable, i.e., the escalating cumulative memory demand breaches the aggregate 6.0 GB capacity by Layer 25. **Therefore, adhering to memory constraints is a foundational prerequisite for edge inference, far beyond a performance concern.**\
+Furthermore, we observe that naively provisioning additional resources does not guarantee system stability. As illustrated, even with the other introduction of a 4.0 GB node (tablet), the system remains vulnerable, i.e., the escalating cumulative memory demand breaches the aggregate 6.0 GB capacity by Layer 25. **Therefore, adhering to memory constraints is a foundational prerequisite for edge inference, far beyond a performance concern.**
 
 
 
