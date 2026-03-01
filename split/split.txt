@@ -1,0 +1,1 @@
+We can split the ViT series, ResNet series, MobileNet series, Inception series, and VGG series
