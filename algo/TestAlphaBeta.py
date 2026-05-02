@@ -34,12 +34,6 @@ class EnergyAwareTaskScheduler:
         self.beta = beta
         self.mem_step = mem_step
         self.f_vec = np.array(self.f_max)
-        self.R_base = np.zeros((M, M))
-        for m in range(M):
-            for n in range(M):
-                if m != n and E_conn[m, n] > 0:
-                    snr = P_tx[m, n] * G[m, n] / (sigma ** 2)
-                    self.R_base[m, n] = BW_max * np.log2(1 + snr)
 
         self.update_matrices()
         self.compute_reference_values()
@@ -51,42 +45,6 @@ class EnergyAwareTaskScheduler:
         self.T_ref = res_ref["T_total"]
         self.E_ref = res_ref["E_total"]
         self._ref_mode = False
-        # print(f"[Ref] T_ref={self.T_ref:.2f}, E_ref={self.E_ref:.2e}")
-
-    def update_matrices(self):
-        self.T_comp = (self.f_max.reshape(1, -1) / self.f_vec.reshape(1, -1)) * self.T_active
-        self.P_comp = self.k_m * (self.f_vec ** 3)
-        self.E_comp_mat = np.zeros((self.S, self.M))
-        for s in range(self.S):
-            for m in range(self.M):
-                self.E_comp_mat[s, m] = self.P_comp[m] * self.T_comp[s, m]
-
-        self.c_k_min = np.zeros(self.S)
-        for k in range(self.S):
-            comp_term = self.alpha * self.T_comp[k, :] + self.beta * (self.P_comp * self.T_comp[k, :])
-            self.c_k_min[k] = np.min(comp_term)
-
-        self.t_k_min = np.zeros(self.S - 1)
-        for k in range(self.S - 1):
-            best = np.inf
-            for i in range(self.M):
-                for j in range(self.M):
-                    if i == j:
-                        cand = 0.0
-                    elif self.E_conn[i, j] > 0:
-                        R = self.R_base[i, j]
-                        t_trans = self.D_s[k] / R + self.L[i, j]
-                        e_trans = self.P_tx[i, j] * t_trans
-                        cand = self.alpha * t_trans + self.beta * e_trans
-                        best = min(best, cand)
-            self.t_k_min[k] = best if best < np.inf else 0.0
-
-        self.c_k_min_suffix = np.zeros(self.S + 1)
-        self.t_k_min_suffix = np.zeros(self.S + 1)
-        for k in range(self.S - 1, -1, -1):
-            self.c_k_min_suffix[k] = self.c_k_min[k] + self.c_k_min_suffix[k + 1]
-        for k in range(self.S - 2, -1, -1):
-            self.t_k_min_suffix[k] = self.t_k_min[k] + self.t_k_min_suffix[k + 1]
 
     def set_frequencies(self, f_vec):
         self.f_vec = np.array(f_vec)
@@ -255,81 +213,5 @@ def early_stop_callback(study, trial):
 
 
 if __name__ == "__main__":
-    S, M, f_max, k_m, T_active, D_s, Mem_req, Mem_avail, BW_max, sigma, P_tx, G, L, E_conn = initialize_parameters()
-
-    N_TRIALS = 0
-    SEED = 42
-
-    alpha_list = np.arange(0.1, 2.01, 0.1)
-    beta_list = np.arange(0.1, 2.01, 0.1)
-
-    fieldnames = [
-        "alpha", "beta", "n_trials", "tpe_time",
-        "stopped_iter", "stop_reason",
-        "best_obj", "best_path",
-        "T_comp", "T_trans", "E_comp", "E_trans",
-        "T_total", "E_total",
-        "norm_time", "norm_energy",
-        "best_f_vec"
-    ]
-
-    with open(csv_path, "w", newline="", encoding="utf-8") as csvfile:
-        writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
-        writer.writeheader()
-
-        T_matrix = np.zeros((len(beta_list), len(alpha_list)))
-        E_matrix = np.zeros((len(beta_list), len(alpha_list)))
-
-        for i, alpha in enumerate(alpha_list):
-            for j, beta in enumerate(beta_list):
-                tpe_status = {"stopped_iter": None, "stop_reason": None}
-                scheduler = EnergyAwareTaskScheduler(S, M, f_max, k_m, T_active, D_s,
-                                                     Mem_req, Mem_avail, BW_max, sigma,
-                                                     P_tx, G, L, E_conn,
-                                                     alpha=alpha, beta=beta)
-
-                sampler = TPESampler(seed=SEED)
-                study = optuna.create_study(direction="minimize", sampler=sampler)
-                objective = make_optuna_objective(scheduler, f_max)
-
-                t0 = time.time()
-                study.optimize(
-                    objective,
-                    n_trials=N_TRIALS,
-                    show_progress_bar=False,
-                    callbacks=[early_stop_callback, logging_callback]
-                )
-                t1 = time.time()
-
-                best_trial = study.best_trial
-                best_f_vec = [best_trial.params.get(f"f_{m}", f_max[m]) for m in range(M)]
-                scheduler.set_frequencies(best_f_vec)
-                best_value, best_path, best_res = scheduler.solve_astar()
-
-                row = {
-                    "alpha": alpha,
-                    "beta": beta,
-                    "n_trials": N_TRIALS,
-                    "tpe_time": t1 - t0,
-                    "stopped_iter": tpe_status.get("stopped_iter", len(study.trials)),
-                    "stop_reason": tpe_status.get("stop_reason", "MaxTrialsReached"),
-                    "best_obj": best_value,
-                    "best_path": str(best_path),
-                    "T_comp": best_res["T_comp"],
-                    "T_trans": best_res["T_trans"],
-                    "E_comp": best_res["E_comp"],
-                    "E_trans": best_res["E_trans"],
-                    "T_total": best_res["T_total"],
-                    "E_total": best_res["E_total"],
-                    "norm_time": best_res["norm_time"],
-                    "norm_energy": best_res["norm_energy"],
-                    "best_f_vec": str(best_f_vec)
-                }
-
-                writer.writerow(row)
-
-                # 填充矩阵
-                T_matrix[j, i] = best_res["T_total"]
-                E_matrix[j, i] = best_res["E_total"]
 
 
